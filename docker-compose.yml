@@ -7,22 +7,17 @@ services:
         dockerfile: ApiProposta/Dockerfile
     container_name: propostasapi
     ports:
-        - "5040:5040"
-    volumes:
-        - ./propostasapi:/app
+        - "8082:8080"  # HOST:CONTAINER         
     depends_on:
         - sqlserver
         - mongodb
         - kafka
         - redis
-    networks:
-        - kafka-network
     environment:
         - ASPNETCORE_ENVIRONMENT=Development
-        - ConnectionStrings__SqlServer=Server=host.docker.internal,1433;Database=Proposta;User Id=sa;Password=YourStrong!Passw0rd;Encrypt=True;TrustServerCertificate=True;
+        - ConnectionStrings__SqlServer=Server=sqlserver,1433;Database=Seguro;User Id=sa;Password=YourStrong!Passw0rd;Encrypt=false;TrustServerCertificate=True;
         - ConnectionStrings__MongoDb=mongodb://mongoadmin:secret@mongodb:27017
         - Kafka__BootstrapServers=kafka:9092
-        - Kafka__BootstrapServers=kafka:29092
 
   apicontratacao:
     build:
@@ -30,16 +25,17 @@ services:
       dockerfile: ApiContratacao/Dockerfile
     container_name: apicontratacao
     ports:
-      - "5030:5030"
-    volumes:
-      - ./apicontratacao:/app
+      - "8083:8080"
     depends_on:
       - sqlserver
       - mongodb
       - kafka
       - redis
-    networks:
-      - kafka-network
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__SqlServer=Server=sqlserver,1433;Database=Seguro;User Id=sa;Password=YourStrong!Passw0rd;Encrypt=false;TrustServerCertificate=True;
+      - ConnectionStrings__MongoDb=mongodb://mongoadmin:secret@mongodb:27017
+      - Kafka__BootstrapServers=kafka:9092
   
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -88,12 +84,11 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
-      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,SSL:SSL
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1

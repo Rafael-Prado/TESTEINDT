@@ -2,6 +2,7 @@
 
 # This stage is used when running from VS in fast mode (Default for Debug configuration)
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+RUN useradd -u 1000 -m appuser
 USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
@@ -29,4 +30,5 @@ RUN dotnet publish "./ApiContratacao.csproj" -c $BUILD_CONFIGURATION -o /app/pub
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+USER appuser
 ENTRYPOINT ["dotnet", "ApiContratacao.dll"]

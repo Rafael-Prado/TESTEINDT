@@ -15,7 +15,7 @@ namespace InfraProposta.Data
 
         public void Run()
         {
-            using var connectionMaster = new SqlConnection("Server=host.docker.internal,1433;Database=Master;User Id=sa;Password=YourStrong!Passw0rd;Encrypt=True;TrustServerCertificate=True;");
+            using var connectionMaster = new SqlConnection("Server=sqlserver,1433;Database=Master;User Id=sa;Password=YourStrong!Passw0rd;Encrypt=False;TrustServerCertificate=True;");
             connectionMaster.Open();
 
             connectionMaster.Execute(@"
