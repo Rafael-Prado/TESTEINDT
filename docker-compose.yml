@@ -1,0 +1,123 @@
+﻿version: '3.8'
+
+services: 
+  apiproposta:
+    build:
+        context: .
+        dockerfile: ApiProposta/Dockerfile
+    container_name: propostasapi
+    ports:
+        - "5040:5040"
+    volumes:
+        - ./propostasapi:/app
+    depends_on:
+        - sqlserver
+        - mongodb
+        - kafka
+        - redis
+    networks:
+        - kafka-network
+    environment:
+        - ASPNETCORE_ENVIRONMENT=Development
+        - ConnectionStrings__SqlServer=Server=host.docker.internal,1433;Database=Proposta;User Id=sa;Password=YourStrong!Passw0rd;Encrypt=True;TrustServerCertificate=True;
+        - ConnectionStrings__MongoDb=mongodb://mongoadmin:secret@mongodb:27017
+        - Kafka__BootstrapServers=kafka:9092
+        - Kafka__BootstrapServers=kafka:29092
+
+  apicontratacao:
+    build:
+      context: .
+      dockerfile: ApiContratacao/Dockerfile
+    container_name: apicontratacao
+    ports:
+      - "5030:5030"
+    volumes:
+      - ./apicontratacao:/app
+    depends_on:
+      - sqlserver
+      - mongodb
+      - kafka
+      - redis
+    networks:
+      - kafka-network
+  
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong!Passw0rd
+    volumes:
+      - sql_data:/var/opt/mssql
+
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongoadmin
+      - MONGO_INITDB_ROOT_PASSWORD=secret
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - kafka-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,SSL:SSL
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - kafka-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local-kafka
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      - kafka
+    networks:
+      - kafka-network
+
+networks:
+  kafka-network:
+    driver: bridge
+
+volumes:
+  sql_data:
+  mongo_data:

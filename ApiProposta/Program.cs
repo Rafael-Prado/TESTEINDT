@@ -1,0 +1,77 @@
+
+using Confluent.Kafka;
+using DomainProposta.Interfaces;
+using DomainProposta.Services;
+using InfraProposta.Data;
+using InfraProposta.Kafka;
+using InfraProposta.Mongo;
+using InfraProposta.Repositories;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
+using System.Data;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+
+builder.Services.AddControllers();
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services.AddScoped<IPropostaRepository, PropostaRepository>();
+
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+
+builder.Services.AddAutoMapper(cfg => cfg.AddMaps(typeof(Program).Assembly));
+
+builder.Services.AddScoped<IDbConnection>(sp =>
+    new SqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Migrations (ou criação de tabelas)
+var migration = new MigrationService(builder.Configuration.GetConnectionString("DefaultConnection"));
+migration.Run();
+
+BsonSerializer.RegisterSerializer(
+    new GuidSerializer(GuidRepresentation.Standard)
+); ;
+
+builder.Services.AddSingleton<IMongoService>(provider =>
+    new MongoService(builder.Configuration["Mongo:ConnectionString"], "Produto"));
+
+
+// Configuração do Kafka Event
+builder.Services.AddSingleton<IEventConsumer>(provider =>
+{
+    var config = new ConsumerConfig
+    {
+        BootstrapServers = builder.Configuration["Kafka:ConnectionString"],
+        GroupId = "grupo-proposta",
+        AutoOffsetReset = AutoOffsetReset.Earliest
+    };
+
+    return new KafkaEventConsumer(config, "proposta-created-topic");
+});
+
+//builder.Services.AddHostedService<KafkaConsumerHostedService>();
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();
