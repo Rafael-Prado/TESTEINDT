@@ -11,12 +11,13 @@ namespace ApiContratacao.Commands.Handlers
     {
         private readonly ICacheService _cacheService;
         private readonly IContratacaoRepository _contratacaoRepository;
-        //private readonly IEventBus _eventBus;
+        private readonly IEventBus _eventBus;
 
-        public CreateContratacaoCommandHandler(ICacheService cacheService, IContratacaoRepository propostaRepository)
+        public CreateContratacaoCommandHandler(ICacheService cacheService, IContratacaoRepository propostaRepository, IEventBus eventBus)
         {
             _cacheService = cacheService;
             _contratacaoRepository = propostaRepository;
+            _eventBus = eventBus;
         }
 
         public async Task<Result> Handle(CreateContratacaoCommand request, CancellationToken cancellationToken)
@@ -27,9 +28,10 @@ namespace ApiContratacao.Commands.Handlers
 
             proposta.Status = StatusProposta.Contratada;
 
+            
+            await _eventBus.PublicarAsync("proposta-contratada-topic", proposta);
             //Remover e utilizar Kafka para comunicar a alteração de status
-           // await _eventBus.PublicarAsync("proposta-contratada-topic", proposta);
-            await _contratacaoRepository.UpdateProposta(proposta);
+            //await _contratacaoRepository.UpdateProposta(proposta);
 
             await _contratacaoRepository.InsertContratacao(new Contratacoes
             {

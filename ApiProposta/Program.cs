@@ -1,5 +1,4 @@
-
-using Confluent.Kafka;
+using DomainProposta.Config;
 using DomainProposta.Interfaces;
 using DomainProposta.Services;
 using InfraProposta.Data;
@@ -7,7 +6,6 @@ using InfraProposta.Kafka;
 using InfraProposta.Mongo;
 using InfraProposta.Repositories;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
@@ -23,6 +21,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<IPropostaRepository, PropostaRepository>();
+builder.Services.AddSingleton<IEventConsumer, KafkaEventConsumer>();
 
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
@@ -41,23 +40,13 @@ BsonSerializer.RegisterSerializer(
 ); ;
 
 builder.Services.AddSingleton<IMongoService>(provider =>
-    new MongoService(builder.Configuration["Mongo:ConnectionString"], "Produto"));
+    new MongoService(builder.Configuration["Mongo:ConnectionString"], "Seguro"));
 
 
-// Configuração do Kafka Event
-builder.Services.AddSingleton<IEventConsumer>(provider =>
-{
-    var config = new ConsumerConfig
-    {
-        BootstrapServers = builder.Configuration["Kafka:ConnectionString"],
-        GroupId = "grupo-proposta",
-        AutoOffsetReset = AutoOffsetReset.Earliest
-    };
+builder.Services.Configure<KafkaSettings>(
+    builder.Configuration.GetSection("KafkaSettings"));
 
-    return new KafkaEventConsumer(config, "proposta-created-topic");
-});
-
-//builder.Services.AddHostedService<KafkaConsumerHostedService>();
+builder.Services.AddHostedService<KafkaConsumerHostedService>();
 
 var app = builder.Build();
 

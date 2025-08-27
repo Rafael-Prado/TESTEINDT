@@ -1,6 +1,7 @@
 using ApiContratacao.Commands.Handlers;
 using DomainContratacao.Interfaces;
 using InfraContratacao.Cache;
+using InfraContratacao.Kafka;
 using InfraContratacao.Repositories;
 using Microsoft.Data.SqlClient;
 using System.Data;
@@ -24,8 +25,8 @@ builder.Services.AddScoped<IDbConnection>(sp =>
     new SqlConnection(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 //Configuração do Kafka Event Bus
-//builder.Services.AddSingleton<IEventBus>(provider =>
-//    new KafkaEventBus(builder.Configuration["Kafka:ConnectionString"], "proposta-created-topic"));
+builder.Services.AddSingleton<IEventBus>(provider =>
+    new KafkaEventBus(builder.Configuration["Kafka:ConnectionString"], "proposta-contratada-topic"));
 
 builder.Services.AddSingleton<ICacheService>(provider =>
     new RedisCacheService(builder.Configuration["Redis:ConnectionString"]));

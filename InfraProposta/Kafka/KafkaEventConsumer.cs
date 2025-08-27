@@ -1,5 +1,9 @@
 ﻿using Confluent.Kafka;
+using DomainProposta.Config;
+using DomainProposta.Entities;
 using DomainProposta.Interfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 
 namespace InfraProposta.Kafka
@@ -8,13 +12,22 @@ namespace InfraProposta.Kafka
     {
         private readonly ConsumerConfig _config;
         private readonly string _topic;
+        
 
-        public KafkaEventConsumer(ConsumerConfig config, string topic)
+        public KafkaEventConsumer(IOptions<KafkaSettings> kafkaSettings)
         {
-            _config = config;
-            _topic = topic;
+            var settings = kafkaSettings.Value;
+
+            _config = new ConsumerConfig
+            {
+                BootstrapServers = settings.BootstrapServers,
+                GroupId = settings.GroupId,
+                AutoOffsetReset = AutoOffsetReset.Earliest
+            };
+
+            _topic = settings.Topic;
         }
-        public async Task ConsumirAsync<T>(Func<T, Task> onMessage, CancellationToken cancellationToken)
+        public async Task ConsumirAsync<Proposta>(Func<Proposta, Task> onMessage, CancellationToken cancellationToken)
         {
             using var consumer = new ConsumerBuilder<Ignore, string>(_config).Build();
             consumer.Subscribe(_topic);
@@ -24,15 +37,16 @@ namespace InfraProposta.Kafka
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     var cr = consumer.Consume(cancellationToken);
-                    var mensagem = JsonSerializer.Deserialize<T>(cr.Message.Value);
-
-                    if (mensagem != null)
-                        await onMessage(mensagem);
+                    var evento = JsonSerializer.Deserialize<Proposta>(cr.Message.Value);
+                    if (evento != null)
+                    {
+                        await onMessage(evento);
+                    }
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException ex)
             {
-                // encerrando graceful
+                Console.WriteLine($"Erro ao desserializar: {ex.Message}");
             }
             finally
             {
